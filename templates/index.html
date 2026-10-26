@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1B4332">
+  <meta name="description" content="Crop2Costumer — From Farm to Your Door. Direct farmer-to-customer agricultural marketplace.">
+  <title>Crop2Costumer — From Farm to Your Door</title>
+  <link rel="icon" type="image/jpeg" href="/static/images/logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <!-- Sticky Top Navigation -->
+  <header class="site-header" id="top">
+    <div class="header-container">
+      <a class="brand-logo" href="#home-view" data-nav="home" aria-label="Crop2Costumer Home">
+        <img src="/static/images/logo.jpg" alt="Crop2Costumer Logo" class="brand-logo-img">
+        <div class="brand-text">
+          <span class="brand-name">Crop<span>2</span>Costumer</span>
+          <span class="brand-tagline">From Farm to Your Door.</span>
+        </div>
+      </a>
+
+      <button id="mobile-menu-toggle" class="mobile-menu-btn" type="button" aria-expanded="false" aria-controls="main-nav" aria-label="Toggle navigation menu">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+
+      <nav id="main-nav" class="main-nav" aria-label="Primary Navigation">
+        <ul class="nav-links">
+          <li><a href="#home-view" data-nav="home" class="nav-link active">Home</a></li>
+          <li><a href="#marketplace-view" data-nav="marketplace" class="nav-link">Browse Crops</a></li>
+          <li><a href="#how-it-works" data-scroll="how-it-works" class="nav-link">How It Works</a></li>
+          <li><a href="#about" data-scroll="about" class="nav-link">About</a></li>
+          <li><a href="#faq-support" data-scroll="faq-support" class="nav-link">Contact &amp; Help</a></li>
+        </ul>
+
+        <div class="nav-actions" id="nav-guest-actions">
+          <button type="button" class="btn btn-ghost" data-auth-trigger="buyer">Login</button>
+          <button type="button" class="btn btn-primary" data-auth-trigger="seller">Join as a Seller</button>
+        </div>
+
+        <div class="nav-actions hidden" id="nav-user-actions">
+          <button type="button" id="nav-dashboard-btn" class="btn btn-secondary">
+            <span id="nav-user-badge">Dashboard</span>
+          </button>
+          <button type="button" id="logout-button" class="btn btn-outline-danger">Logout</button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Global Toast / Status Notification -->
+  <div id="toast-container" class="toast-container" aria-live="polite">
+    <div id="notice" class="toast-banner hidden" role="status"></div>
+  </div>
+
+  <main id="main-content">
+    <!-- ==================== 1. PREMIUM LANDING VIEW ==================== -->
+    <div id="home-view" class="view-section">
+      <!-- Hero Section -->
+      <section class="hero-section">
+        <div class="container hero-grid">
+          <div class="hero-content">
+            <div class="eyebrow-badge">
+              <span class="status-dot"></span>
+              <span>DIRECT AGRICULTURAL MARKETPLACE · FROM FARM TO YOUR DOOR</span>
+            </div>
+            <h1 class="hero-title">Fresh from the Farm.<br><span>Straight to Your Home.</span></h1>
+            <p class="hero-lead">
+              Discover quality crops directly from farmers. Support local agriculture, explore fresh produce, and buy with confidence.
+            </p>
+            <div class="hero-cta-group">
+              <button type="button" class="btn btn-primary btn-lg" id="hero-explore-btn" data-nav="marketplace">
+                Explore Crops <span aria-hidden="true">→</span>
+              </button>
+              <button type="button" class="btn btn-secondary btn-lg" data-auth-trigger="seller">
+                Start Selling <span aria-hidden="true">↗</span>
+              </button>
+              <button type="button" class="btn btn-ghost btn-lg" data-auth-trigger="buyer">
+                Buyer Login
+              </button>
+            </div>
+
+            <!-- Live Application Metrics (Strict Groundedness: populated from actual DB) -->
+            <div class="hero-metrics" aria-label="Live Marketplace Activity">
+              <div class="metric-item">
+                <strong id="stat-active-listings">—</strong>
+                <span>Active Crop Listings</span>
+              </div>
+              <div class="metric-divider"></div>
+              <div class="metric-item">
+                <strong id="stat-categories">—</strong>
+                <span>Produce Categories</span>
+              </div>
+              <div class="metric-divider"></div>
+              <div class="metric-item">
+                <strong id="stat-orders-placed">—</strong>
+                <span>Direct Orders Placed</span>
+              </div>
+              <div class="metric-divider"></div>
+              <div class="metric-item">
+                <strong>Zero</strong>
+                <span>Middleman Markups</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-visual">
+            <div class="hero-image-frame">
+              <img src="/static/images/hero_farm.jpg" alt="Freshly harvested vegetables, tomatoes, and grains on an Indian farm at sunrise" class="hero-main-img">
+              <div class="hero-floating-card">
+                <img src="/static/images/logo.jpg" alt="Crop2Costumer Emblem" class="floating-card-logo">
+                <div>
+                  <strong>Direct Harvest Fulfilment</strong>
+                  <p>Order online with your delivery address — no online payment gateway required.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 1: Featured Crops -->
+      <section class="section-block bg-surface" id="featured-crops-section">
+        <div class="container">
+          <div class="section-header-row">
+            <div>
+              <span class="section-eyebrow">SEASONAL HARVEST HIGHLIGHTS</span>
+              <h2 class="section-heading">Featured Crops</h2>
+              <p class="section-subtext">Freshly listed produce available directly from registered farms in the marketplace.</p>
+            </div>
+            <button type="button" class="btn btn-secondary" data-nav="marketplace">View All Crops →</button>
+          </div>
+          <div id="landing-featured-grid" class="product-grid"></div>
+        </div>
+      </section>
+
+      <!-- Section 2: Browse by Category -->
+      <section class="section-block" id="categories-section">
+        <div class="container">
+          <div class="section-header-center">
+            <span class="section-eyebrow">EXPLORE BY PRODUCE TYPE</span>
+            <h2 class="section-heading">Browse by Category</h2>
+            <p class="section-subtext">Filter the marketplace by staple grains, fresh vegetables, orchard fruits, pulses, and leafy greens.</p>
+          </div>
+          <div class="category-grid" id="landing-category-grid">
+            <button type="button" class="category-card" data-category-jump="Vegetables">
+              <div class="category-thumb"><img src="/static/images/crop_tomatoes.jpg" alt="Fresh Vegetables"></div>
+              <div class="category-info">
+                <h3>Vegetables</h3>
+                <p>Tomatoes, onions, potatoes, gourds &amp; daily staples</p>
+                <span class="category-link">Browse Vegetables →</span>
+              </div>
+            </button>
+            <button type="button" class="category-card" data-category-jump="Grains & Cereals">
+              <div class="category-thumb"><img src="/static/images/crop_grains.jpg" alt="Grains and Cereals"></div>
+              <div class="category-info">
+                <h3>Grains &amp; Cereals</h3>
+                <p>Paddy rice, wheat, millets, jowar, bajra &amp; maize</p>
+                <span class="category-link">Browse Grains →</span>
+              </div>
+            </button>
+            <button type="button" class="category-card" data-category-jump="Leafy Greens">
+              <div class="category-thumb"><img src="/static/images/crop_greens.jpg" alt="Leafy Greens and Spices"></div>
+              <div class="category-info">
+                <h3>Leafy Greens &amp; Pod Crops</h3>
+                <p>Spinach, coriander, okra, green chilies &amp; herbs</p>
+                <span class="category-link">Browse Greens →</span>
+              </div>
+            </button>
+            <button type="button" class="category-card" data-category-jump="Fruits">
+              <div class="category-thumb"><img src="/static/images/crop_fruits.jpg" alt="Orchard Fruits"></div>
+              <div class="category-info">
+                <h3>Orchard Fruits</h3>
+                <p>Mangoes, bananas, papayas, guavas &amp; citrus</p>
+                <span class="category-link">Browse Fruits →</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3: How Crop2Costumer Works -->
+      <section class="section-block bg-forest-tint" id="how-it-works">
+        <div class="container">
+          <div class="section-header-center">
+            <span class="section-eyebrow">SIMPLE END-TO-END WORKFLOW</span>
+            <h2 class="section-heading">How Crop2Costumer Works</h2>
+            <p class="section-subtext">No complicated checkout or payment gateways. Direct ordering from harvest to doorstep.</p>
+          </div>
+          <div class="steps-grid">
+            <div class="step-card">
+              <span class="step-number">01</span>
+              <h3>Farmer Uploads Crop</h3>
+              <p>Registered sellers photograph their harvest, enter variety, grade, available stock, farm location, and set their own fair price per unit.</p>
+            </div>
+            <div class="step-card">
+              <span class="step-number">02</span>
+              <h3>Customer Discovers Crop</h3>
+              <p>Buyers search and filter real-time listings by crop category, location, price range, and harvest date with complete transparency.</p>
+            </div>
+            <div class="step-card">
+              <span class="step-number">03</span>
+              <h3>Click Buy &amp; Enter Address</h3>
+              <p>Select your desired quantity and provide your delivery address (house, village/city, district, state, and PIN code).</p>
+            </div>
+            <div class="step-card">
+              <span class="step-number">04</span>
+              <h3>Confirm &amp; Track Order</h3>
+              <p>Confirm your order with zero online payment friction. Stock updates immediately and both farmer and buyer track status through delivery.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 4 & 5: Why Buy Directly From Farmers + Benefits for Farmers -->
+      <section class="section-block" id="about">
+        <div class="container dual-value-grid">
+          <div class="value-panel buyer-value-panel">
+            <span class="section-eyebrow">FOR HOUSEHOLDS &amp; LOCAL BUYERS</span>
+            <h2>Why Buy Directly From Farmers?</h2>
+            <p class="panel-intro">Traditional supply chains pass produce through multiple wholesale mandis and brokers before reaching your kitchen.</p>
+            <ul class="benefit-list">
+              <li>
+                <strong>Clear Harvest Provenance</strong>
+                <span>See the exact farm location, crop variety, quality grade, and harvest date supplied by the seller.</span>
+              </li>
+              <li>
+                <strong>Transparent Farm-Gate Pricing</strong>
+                <span>Pay the price listed by the grower per kg, quintal, bunch, or dozen without hidden platform surcharges.</span>
+              </li>
+              <li>
+                <strong>No Online Payment Lock-In</strong>
+                <span>Place your order directly with your delivery address and settle payment directly upon dispatch or delivery arrangement.</span>
+              </li>
+            </ul>
+            <button type="button" class="btn btn-primary" data-auth-trigger="buyer">Continue as Buyer →</button>
+          </div>
+
+          <div class="value-panel seller-value-panel">
+            <span class="section-eyebrow">FOR GROWERS &amp; CULTIVATORS</span>
+            <h2>Benefits for Farmers</h2>
+            <p class="panel-intro">Built for simplicity on any smartphone so cultivators can list harvests in under two minutes.</p>
+            <ul class="benefit-list">
+              <li>
+                <strong>Set Your Own Price &amp; Units</strong>
+                <span>List in kilograms, quintals, bunches, dozens, crates, or bags and update stock quantities anytime.</span>
+              </li>
+              <li>
+                <strong>Instant Order Notifications &amp; Control</strong>
+                <span>Review incoming buyer orders with full delivery addresses, accept or decline orders, and update dispatch progress.</span>
+              </li>
+              <li>
+                <strong>Automatic Stock Protection</strong>
+                <span>Server-side inventory locking prevents overselling when multiple customers order your crop simultaneously.</span>
+              </li>
+            </ul>
+            <button type="button" class="btn btn-secondary" data-auth-trigger="seller">Continue as Seller ↗</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 6: Recently Added Products -->
+      <section class="section-block bg-surface" id="recent-products-section">
+        <div class="container">
+          <div class="section-header-row">
+            <div>
+              <span class="section-eyebrow">LIVE MARKETPLACE FEED</span>
+              <h2 class="section-heading">Recently Added Products</h2>
+              <p class="section-subtext">The newest crop listings published to the shared database.</p>
+            </div>
+            <button type="button" class="btn btn-outline" data-nav="marketplace">Search &amp; Filter All →</button>
+          </div>
+          <div id="landing-recent-grid" class="product-grid"></div>
+        </div>
+      </section>
+
+      <!-- Section 7: Strong Farmer Recruitment Section -->
+      <section class="section-block" id="farmer-recruitment">
+        <div class="container">
+          <div class="recruitment-banner">
+            <div class="recruitment-copy">
+              <span class="eyebrow-light">JOIN CROP2COSTUMER AS A SELLER</span>
+              <h2>Grow Your Farm’s Reach Without Leaving Your Field.</h2>
+              <p>
+                Whether you harvest 20 kg of backyard vegetables or 50 quintals of paddy rice, Crop2Costumer gives you a dedicated digital storefront. Sign in with your mobile number, upload a photo of your crop, and receive direct buyer orders.
+              </p>
+              <div class="recruitment-actions">
+                <button type="button" class="btn btn-light btn-lg" data-auth-trigger="seller">Register / Sign In as Seller</button>
+                <button type="button" class="btn btn-outline-light btn-lg" data-nav="marketplace">Explore Live Marketplace</button>
+              </div>
+            </div>
+            <div class="recruitment-brand-card">
+              <img src="/static/images/logo.jpg" alt="Crop2Costumer Official Emblem" class="recruitment-logo">
+              <div class="recruitment-card-caption">
+                <strong>Crop2Costumer</strong>
+                <span>“From Farm to Your Door.”</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 8: Frequently Asked Questions & Support -->
+      <section class="section-block bg-surface" id="faq-support">
+        <div class="container">
+          <div class="section-header-center">
+            <span class="section-eyebrow">HELP &amp; TRANSPARENCY</span>
+            <h2 class="section-heading">Frequently Asked Questions</h2>
+            <p class="section-subtext">Everything you need to know about buying and selling on Crop2Costumer.</p>
+          </div>
+          <div class="faq-grid">
+            <details class="faq-item" open>
+              <summary>How does payment work if there is no online payment gateway?</summary>
+              <p>Crop2Costumer is a direct order-placement marketplace. Customers select a crop, enter their delivery address, and confirm their order without entering card or UPI details online. Payment is settled directly between the buyer and seller outside the platform upon dispatch or doorstep delivery.</p>
+            </details>
+            <details class="faq-item">
+              <summary>Can I use the same phone number for both Buyer and Seller accounts?</summary>
+              <p>Yes. Buyer and Seller roles are strictly separated with independent permissions and dashboards. You can sign in as a Seller to manage your farm listings, or sign in as a Buyer to purchase crops from other farmers (note: you cannot purchase your own listing).</p>
+            </details>
+            <details class="faq-item">
+              <summary>How does phone OTP login work in local development vs. production?</summary>
+              <p>When an SMS provider (Twilio or Fast2SMS) is configured via environment variables, the server dispatches a real SMS code. When running in local development/demo mode without external SMS credentials, the interface clearly indicates Demo Mode and accepts the common development OTP <code>1234</code>.</p>
+            </details>
+            <details class="faq-item">
+              <summary>What happens when two buyers try to order the last available stock at the same time?</summary>
+              <p>Every order runs inside an atomic SQLite <code>BEGIN IMMEDIATE</code> database transaction on the server. Stock is verified and decremented atomically so overselling cannot occur.</p>
+            </details>
+            <details class="faq-item">
+              <summary>Can a buyer cancel an order after placing it?</summary>
+              <p>Yes. Buyers can cancel an order directly from their “My Orders” dashboard while the order is in <strong>Order Placed</strong> or <strong>Accepted</strong> status, which automatically restores the reserved crop quantity back to the seller's listing.</p>
+            </details>
+            <details class="faq-item">
+              <summary>Where are uploaded crop photos and records stored?</summary>
+              <p>Structured records (users, listings, stock, orders, addresses) are stored in <code>data/marketplace.db</code> (SQLite), and uploaded crop images are validated, optimized via Pillow, and stored persistently in <code>uploads/</code>.</p>
+            </details>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ==================== 2. BUYER MARKETPLACE VIEW (SHARED CATALOGUE) ==================== -->
+    <section id="marketplace-view" class="view-section hidden">
+      <div class="container section-padding">
+        <div class="marketplace-header">
+          <div>
+            <span class="section-eyebrow">SHARED AGRICULTURAL CATALOGUE</span>
+            <h1 class="page-title">Browse Farm Crops</h1>
+            <p class="page-subtitle">Explore live crop listings published by farmers. Search by crop name, variety, seller, or farm location.</p>
+          </div>
+          <div class="marketplace-header-actions">
+            <button type="button" id="market-my-orders-btn" class="btn btn-secondary hidden">My Orders (<span id="buyer-order-count">0</span>)</button>
+            <button type="button" id="market-sell-btn" class="btn btn-outline" data-auth-trigger="seller">List Your Crop</button>
+          </div>
+        </div>
+
+        <!-- Comprehensive Search & Multi-Filter Bar -->
+        <div class="filter-panel" role="search" aria-label="Filter and search crops">
+          <div class="filter-top-row">
+            <div class="search-input-wrap">
+              <span class="search-icon" aria-hidden="true">⌕</span>
+              <input id="market-search" type="search" placeholder="Search crop name, variety, farm, or location (e.g. Tomato, Sona Masoori, Atmakur)…" aria-label="Search crops">
+              <button type="button" id="market-search-btn" class="btn btn-primary btn-sm">Search</button>
+            </div>
+            <div class="filter-select-group">
+              <select id="market-category" aria-label="Filter by crop category">
+                <option value="all">All Categories</option>
+                <option value="Vegetables">Vegetables</option>
+                <option value="Fruits">Fruits</option>
+                <option value="Grains & Cereals">Grains &amp; Cereals</option>
+                <option value="Leafy Greens">Leafy Greens</option>
+                <option value="Pulses & Lentils">Pulses &amp; Lentils</option>
+                <option value="Spices & Herbs">Spices &amp; Herbs</option>
+                <option value="Oilseeds">Oilseeds</option>
+                <option value="Root Crops">Root Crops</option>
+                <option value="Other Produce">Other Produce</option>
+              </select>
+              <select id="market-sort" aria-label="Sort crops">
+                <option value="newest">Sort: Newest Listings</option>
+                <option value="price_asc">Price: Low to High</option>
+                <option value="price_desc">Price: High to Low</option>
+                <option value="name_asc">Name: A to Z</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="filter-bottom-row">
+            <div class="filter-field">
+              <label for="market-location">Farm Location</label>
+              <input id="market-location" type="text" placeholder="e.g. Atmakur, Kurnool">
+            </div>
+            <div class="filter-field">
+              <label for="market-min-price">Min Price (₹)</label>
+              <input id="market-min-price" type="number" min="0" step="1" placeholder="₹ Min">
+            </div>
+            <div class="filter-field">
+              <label for="market-max-price">Max Price (₹)</label>
+              <input id="market-max-price" type="number" min="0" step="1" placeholder="₹ Max">
+            </div>
+            <div class="filter-field">
+              <label for="market-status">Availability</label>
+              <select id="market-status">
+                <option value="available">Available Stock Only</option>
+                <option value="all">All Listings (Incl. Sold Out)</option>
+                <option value="sold">Sold Out Only</option>
+              </select>
+            </div>
+            <div class="filter-actions">
+              <button type="button" id="apply-filters-btn" class="btn btn-primary btn-sm">Apply Filters</button>
+              <button type="button" id="clear-filters-btn" class="btn btn-ghost btn-sm">Clear All</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="results-meta-bar">
+          <span id="market-results-summary">Showing available crops</span>
+        </div>
+
+        <div id="market-loading" class="loading-state hidden">
+          <span class="spinner"></span> Loading fresh crop listings…
+        </div>
+
+        <div id="market-error" class="empty-state-card hidden" role="alert">
+          <div class="empty-icon">⚠️</div>
+          <h3>We couldn’t load the crop listings</h3>
+          <p id="market-error-message">Check your connection and try again.</p>
+          <button type="button" id="market-retry-btn" class="btn btn-primary">Try Again</button>
+        </div>
+
+        <div id="market-grid" class="product-grid"></div>
+
+        <div id="market-empty" class="empty-state-card hidden">
+          <div class="empty-icon">🌾</div>
+          <h3>No matching crops found</h3>
+          <p>We couldn't find any crop listings matching your active search or filters.</p>
+          <button type="button" id="empty-reset-filters" class="btn btn-secondary">Reset All Filters</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 3. PRODUCT DETAILS VIEW ==================== -->
+    <section id="product-detail-view" class="view-section hidden">
+      <div class="container section-padding">
+        <button type="button" id="detail-back-btn" class="back-nav-btn">← Back to Crop Marketplace</button>
+        <div id="product-detail-container" class="product-detail-card"></div>
+      </div>
+    </section>
+
+    <!-- ==================== 4. PHONE OTP LOGIN & REGISTRATION VIEW ==================== -->
+    <section id="login-view" class="view-section hidden">
+      <div class="container section-padding">
+        <div class="auth-layout">
+          <div class="auth-brand-panel">
+            <img src="/static/images/logo.jpg" alt="Crop2Costumer Logo" class="auth-panel-logo">
+            <span class="eyebrow-light" id="auth-role-eyebrow">PHONE NUMBER AUTHENTICATION</span>
+            <h1 id="login-title">Sign in to Crop2Costumer</h1>
+            <p id="login-subtitle">Connect directly with local agriculture using your mobile number.</p>
+            <div class="auth-role-switcher" role="tablist" aria-label="Choose account role">
+              <button type="button" class="role-switch-btn active" id="switch-role-buyer" data-switch-role="buyer">
+                <strong>Continue as Buyer</strong>
+                <span>Discover crops &amp; place orders</span>
+              </button>
+              <button type="button" class="role-switch-btn" id="switch-role-seller" data-switch-role="seller">
+                <strong>Continue as Seller</strong>
+                <span>Upload harvest &amp; manage orders</span>
+              </button>
+            </div>
+            <div class="auth-security-note">
+              <strong>Role Separation Guarantee:</strong> Buyer and Seller accounts have separate permissions and dashboards.
+            </div>
+          </div>
+
+          <div class="auth-form-card">
+            <button id="back-home" class="back-nav-btn" type="button">← Back to Home</button>
+
+            <div class="auth-card-header">
+              <span class="section-eyebrow" id="auth-step-indicator">STEP 1 OF 2 · MOBILE NUMBER</span>
+              <h2 id="auth-card-heading">Enter Your Mobile Number</h2>
+              <p id="auth-card-subtext">We’ll verify your phone number with a One-Time Password (OTP).</p>
+            </div>
+
+            <!-- Step 1: Phone Form -->
+            <form id="phone-form" novalidate>
+              <div class="form-group">
+                <label for="phone">Mobile Number (with country code or 10-digit mobile)</label>
+                <div class="phone-input-group">
+                  <span class="country-prefix" aria-hidden="true">+91</span>
+                  <input id="phone" name="phone" type="tel" inputmode="numeric" placeholder="98765 43210" autocomplete="tel-national" required maxlength="10">
+                </div>
+                <small class="field-hint">Enter a 10-digit Indian mobile number beginning with 6, 7, 8, or 9. We’ll add +91.</small>
+              </div>
+
+              <div id="seller-onboarding-fields" class="optional-onboarding hidden">
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label for="auth-fullname">Your Name <span class="label-optional">(for new account)</span></label>
+                    <input id="auth-fullname" type="text" maxlength="80" placeholder="e.g. Venkat Rao">
+                  </div>
+                  <div class="form-group">
+                    <label for="auth-farmname">Farm Name <span class="label-optional">(for sellers)</span></label>
+                    <input id="auth-farmname" type="text" maxlength="100" placeholder="e.g. Rayalaseema Farms">
+                  </div>
+                </div>
+              </div>
+
+              <button id="request-otp-btn" class="btn btn-primary btn-block btn-lg" type="submit">
+                <span class="button-label">Request OTP Verification Code</span>
+                <span class="button-loader hidden" aria-hidden="true"></span>
+              </button>
+            </form>
+
+            <!-- Step 2: OTP Verification Form -->
+            <form id="code-form" class="hidden" novalidate>
+              <div id="otp-mode-banner" class="demo-auth-banner">
+                <div class="banner-badge">DEMO AUTHENTICATION MODE</div>
+                <p id="otp-mode-message">
+                  No real SMS was sent because an external SMS gateway is not configured in this environment. Use common development OTP <strong id="demo-code">1234</strong>.
+                </p>
+              </div>
+
+              <div class="form-group">
+                <label for="code">Enter OTP Verification Code</label>
+                <input class="otp-code-input" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="1234" required>
+                <small class="field-hint" id="otp-code-hint">Follow the instructions above to enter the code for this verification request.</small>
+              </div>
+
+              <button id="verify-otp-btn" class="btn btn-primary btn-block btn-lg" type="submit">
+                <span class="button-label">Verify OTP &amp; Continue</span>
+                <span class="button-loader hidden" aria-hidden="true"></span>
+              </button>
+
+              <div class="auth-secondary-actions">
+                <button id="resend-otp-btn" class="btn-link" type="button">Resend OTP</button>
+                <span>·</span>
+                <button id="change-phone" class="btn-link" type="button">Use a different mobile number</button>
+              </div>
+            </form>
+
+            <div id="login-error" class="alert-box alert-error hidden" role="alert"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 5. CHECKOUT VIEW (NO PAYMENT GATEWAY) ==================== -->
+    <section id="checkout-view" class="view-section hidden">
+      <div class="container section-padding">
+        <button type="button" id="checkout-back-btn" class="back-nav-btn">← Back to Crop Details</button>
+
+        <div class="checkout-layout">
+          <div class="checkout-form-panel">
+            <span class="section-eyebrow">DIRECT FARM ORDER · NO ONLINE PAYMENT</span>
+            <h1 class="page-title">Delivery Address &amp; Order Confirmation</h1>
+            <p class="page-subtitle">Enter where the farmer should dispatch your harvest. No online card, UPI, or wallet payment is collected on this website.</p>
+
+            <form id="checkout-form" novalidate>
+              <input type="hidden" id="checkout-product-id">
+
+              <div class="form-section-box">
+                <h3>1. Select Order Quantity</h3>
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label for="checkout-quantity">Quantity (<span id="checkout-unit-label">kg</span>)</label>
+                    <input id="checkout-quantity" name="quantity" type="number" min="0.5" step="0.5" value="1" required>
+                    <small class="field-hint" id="checkout-stock-hint">Available stock: —</small>
+                  </div>
+                  <div class="form-group">
+                    <label>Calculated Order Total</label>
+                    <div class="calculated-total-box" id="checkout-live-total">₹0.00</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-section-box">
+                <h3>2. Recipient &amp; Delivery Address</h3>
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label for="checkout-fullname">Full Name *</label>
+                    <input id="checkout-fullname" name="fullName" type="text" required maxlength="80" placeholder="e.g. Siva Kumar Reddy">
+                  </div>
+                  <div class="form-group">
+                    <label for="checkout-mobile">Mobile Number *</label>
+                    <input id="checkout-mobile" name="mobile" type="tel" required maxlength="18" placeholder="e.g. +91 9876543210">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="checkout-street">House Number, Building &amp; Street *</label>
+                  <input id="checkout-street" name="houseStreet" type="text" required maxlength="160" placeholder="e.g. H.No 4-112, Main Bazaar Road, Near Water Tank">
+                </div>
+
+                <div class="form-row-3">
+                  <div class="form-group">
+                    <label for="checkout-city">Village, Town, or City *</label>
+                    <input id="checkout-city" name="villageCity" type="text" required maxlength="80" placeholder="e.g. Atmakur">
+                  </div>
+                  <div class="form-group">
+                    <label for="checkout-district">District *</label>
+                    <input id="checkout-district" name="district" type="text" required maxlength="80" placeholder="e.g. Nandyal">
+                  </div>
+                  <div class="form-group">
+                    <label for="checkout-state">State *</label>
+                    <input id="checkout-state" name="state" type="text" required maxlength="80" value="Andhra Pradesh" placeholder="e.g. Andhra Pradesh">
+                  </div>
+                </div>
+
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label for="checkout-pincode">6-Digit PIN Code *</label>
+                    <input id="checkout-pincode" name="pinCode" type="text" inputmode="numeric" pattern="\d{6}" maxlength="6" required placeholder="e.g. 518422">
+                  </div>
+                  <div class="form-group">
+                    <label for="checkout-instructions">Delivery Instructions <span class="label-optional">(Optional)</span></label>
+                    <input id="checkout-instructions" name="instructions" type="text" maxlength="250" placeholder="e.g. Call before arrival, morning delivery preferred">
+                  </div>
+                </div>
+              </div>
+
+              <div class="no-payment-callout">
+                <strong>Direct Farmer Fulfilment Notice:</strong> Clicking confirm below records a real order in the marketplace database and reserves your stock. It does <em>not</em> process an online payment. Payment arrangements are settled directly with the seller upon dispatch or delivery.
+              </div>
+
+              <div id="checkout-error" class="alert-box alert-error hidden" role="alert"></div>
+
+              <button type="submit" id="confirm-order-btn" class="btn btn-primary btn-lg btn-block">
+                <span class="button-label">Confirm Order — No Online Payment</span>
+                <span class="button-loader hidden" aria-hidden="true"></span>
+              </button>
+            </form>
+          </div>
+
+          <aside class="checkout-summary-panel">
+            <div class="summary-card">
+              <h3>Order Summary</h3>
+              <div id="checkout-summary-content"></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 6. ORDER CONFIRMATION VIEW ==================== -->
+    <section id="order-confirmation-view" class="view-section hidden">
+      <div class="container section-padding">
+        <div class="confirmation-card">
+          <img src="/static/images/logo.jpg" alt="Crop2Costumer Logo" class="confirmation-logo">
+          <span class="status-pill status-placed">Order Recorded — No Online Payment Charged</span>
+          <h1>Your Crop Order Has Been Placed!</h1>
+          <p class="confirmation-lead">
+            Your order has been saved to the persistent marketplace database and sent to the farmer's dashboard for review and fulfilment.
+          </p>
+          <div id="confirmation-details-box" class="confirmation-details-box"></div>
+          <div class="confirmation-next-steps">
+            <h3>What Happens Next?</h3>
+            <ol>
+              <li><strong>Seller Review:</strong> The farmer reviews your order and delivery address in their Seller Dashboard and marks it <em>Accepted</em>.</li>
+              <li><strong>Harvest Preparation &amp; Dispatch:</strong> Track status updates (<em>Preparing → Ready for Dispatch → Dispatched → Delivered</em>) in your Buyer Dashboard.</li>
+              <li><strong>Direct Settlement:</strong> Since Crop2Costumer has no online payment gateway, coordinate payment directly with the farmer upon delivery/dispatch.</li>
+            </ol>
+          </div>
+          <div class="confirmation-actions">
+            <button type="button" id="confirm-view-orders-btn" class="btn btn-primary btn-lg">Go to My Orders</button>
+            <button type="button" id="confirm-continue-shopping-btn" class="btn btn-secondary btn-lg">Continue Browsing Crops</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 7. BUYER & SELLER DASHBOARD VIEW ==================== -->
+    <section id="dashboard-view" class="view-section hidden">
+      <div class="container section-padding">
+        <!-- Dashboard Welcome Banner -->
+        <div class="dashboard-banner">
+          <div class="dashboard-banner-left">
+            <span class="section-eyebrow" id="dashboard-eyebrow">ACCOUNT DASHBOARD</span>
+            <h1 id="dashboard-title">Welcome back</h1>
+            <p id="dashboard-description"></p>
+          </div>
+          <div class="dashboard-banner-right">
+            <div id="account-chip" class="account-badge"></div>
+            <button type="button" id="open-profile-modal-btn" class="btn btn-outline btn-sm">Edit Profile</button>
+            <button type="button" id="seller-add-crop-top-btn" class="btn btn-primary hidden">+ Add New Crop</button>
+          </div>
+        </div>
+
+        <!-- Profile Edit Collapsible Panel -->
+        <div id="profile-edit-panel" class="card-panel hidden">
+          <div class="panel-header-row">
+            <div>
+              <h3>Account &amp; Farm Profile</h3>
+              <p>Keep your contact name, farm identity, and location accurate for marketplace buyers and sellers.</p>
+            </div>
+            <button type="button" id="close-profile-btn" class="btn btn-ghost btn-sm">Close ✕</button>
+          </div>
+          <form id="profile-form" class="form-grid-compact">
+            <div class="form-row-3">
+              <div class="form-group">
+                <label for="profile-fullname">Full Name</label>
+                <input id="profile-fullname" name="fullName" type="text" maxlength="80" placeholder="Your full name">
+              </div>
+              <div class="form-group" id="profile-farm-group">
+                <label for="profile-farmname">Farm / Store Name</label>
+                <input id="profile-farmname" name="farmName" type="text" maxlength="100" placeholder="e.g. Nallamala Green Farms">
+              </div>
+              <div class="form-group">
+                <label for="profile-location">Village / Town &amp; District</label>
+                <input id="profile-location" name="location" type="text" maxlength="120" placeholder="e.g. Atmakur, Nandyal, AP">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="profile-bio">About Your Farm / Delivery Note</label>
+              <input id="profile-bio" name="bio" type="text" maxlength="300" placeholder="Brief note about your farming practices or preferred delivery hours">
+            </div>
+            <div class="form-actions-inline">
+              <button type="submit" class="btn btn-primary btn-sm">Save Profile</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- ==================== BUYER DASHBOARD SECTION ==================== -->
+        <div id="buyer-dashboard-section" class="hidden">
+          <div class="dashboard-tabs" role="tablist" aria-label="Buyer dashboard navigation">
+            <button class="dash-tab active" data-buyer-tab="orders" role="tab" aria-selected="true">My Orders (<span id="buyer-tab-order-count">0</span>)</button>
+            <button class="dash-tab" data-buyer-tab="explore" role="tab" aria-selected="false">Explore Marketplace Crops →</button>
+          </div>
+
+          <section id="purchases-section" class="dash-panel">
+            <div class="panel-header-row">
+              <div>
+                <h2>My Crop Orders</h2>
+                <p>Track all orders placed with farmers, view delivery address snapshots, or cancel eligible orders.</p>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" data-nav="marketplace">+ Browse More Crops</button>
+            </div>
+            <div id="purchases-grid" class="orders-list"></div>
+            <div id="purchases-empty" class="empty-state-card hidden">
+              <div class="empty-icon">🧺</div>
+              <h3>You haven't placed any crop orders yet</h3>
+              <p>Explore the marketplace to discover fresh vegetables, grains, and orchard fruits directly from farmers.</p>
+              <button type="button" class="btn btn-primary" data-nav="marketplace">Browse Crops Now</button>
+            </div>
+          </section>
+        </div>
+
+        <!-- ==================== SELLER DASHBOARD SECTION ==================== -->
+        <div id="seller-section" class="hidden">
+          <!-- Seller Summary KPI Cards -->
+          <div class="seller-kpi-grid">
+            <div class="kpi-card">
+              <span class="kpi-label">Total Listings</span>
+              <strong class="kpi-value" id="seller-kpi-total">0</strong>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Active in Marketplace</span>
+              <strong class="kpi-value text-forest" id="seller-kpi-active">0</strong>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Sold Out / Unavailable</span>
+              <strong class="kpi-value text-amber" id="seller-kpi-inactive">0</strong>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Orders Received</span>
+              <strong class="kpi-value" id="seller-kpi-orders">0</strong>
+            </div>
+          </div>
+
+          <!-- Seller Add / Edit Crop Form Panel -->
+          <div id="seller-form-wrapper" class="card-panel seller-crop-form-panel hidden">
+            <div class="panel-header-row">
+              <div>
+                <span class="section-eyebrow">FARM INVENTORY LISTING</span>
+                <h2 id="product-form-title">Add New Crop Listing</h2>
+                <p>Provide accurate crop details, harvest information, unit price, and a clear photo.</p>
+              </div>
+              <button type="button" id="close-crop-form-btn" class="btn btn-ghost btn-sm">Close Form ✕</button>
+            </div>
+
+            <form id="product-form" enctype="multipart/form-data" novalidate>
+              <input id="product-id" type="hidden">
+
+              <div class="seller-form-grid">
+                <div class="seller-photo-column">
+                  <label class="photo-picker" for="photo">
+                    <div id="photo-placeholder" class="photo-placeholder">
+                      <span class="photo-icon">📷</span>
+                      <strong id="photo-title">Upload Crop Photo *</strong>
+                      <span>JPEG, PNG, or WebP · Max 5 MB</span>
+                    </div>
+                    <img id="photo-preview" class="photo-preview-img hidden" alt="Selected crop preview">
+                  </label>
+                  <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" class="visually-hidden">
+                </div>
+
+                <div class="seller-fields-column">
+                  <div class="form-row-2">
+                    <div class="form-group">
+                      <label for="product-name">1. Crop or Product Name *</label>
+                      <input id="product-name" name="name" maxlength="100" placeholder="e.g. Organic Sona Masoori Rice / Desi Tomatoes" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="product-category">2. Product Category *</label>
+                      <select id="product-category" name="category" required>
+                        <option value="Vegetables">Vegetables</option>
+                        <option value="Fruits">Fruits</option>
+                        <option value="Grains & Cereals">Grains &amp; Cereals</option>
+                        <option value="Leafy Greens">Leafy Greens</option>
+                        <option value="Pulses & Lentils">Pulses &amp; Lentils</option>
+                        <option value="Spices & Herbs">Spices &amp; Herbs</option>
+                        <option value="Oilseeds">Oilseeds</option>
+                        <option value="Root Crops">Root Crops</option>
+                        <option value="Other Produce">Other Produce</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="form-row-3">
+                    <div class="form-group">
+                      <label for="product-price">3. Price per Unit (₹) *</label>
+                      <input id="product-price" name="price" type="number" min="0.5" max="1000000" step="0.5" placeholder="e.g. 45.00" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="product-unit">4. Unit of Measurement *</label>
+                      <select id="product-unit" name="unit" required>
+                        <option value="kg">Kilogram (kg)</option>
+                        <option value="quintal">Quintal (100 kg)</option>
+                        <option value="bunch">Bunch</option>
+                        <option value="dozen">Dozen</option>
+                        <option value="piece">Piece</option>
+                        <option value="crate">Crate</option>
+                        <option value="bag">Bag</option>
+                        <option value="ton">Ton</option>
+                        <option value="litre">Litre</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="product-quantity">5. Available Quantity *</label>
+                      <input id="product-quantity" name="quantity" type="number" min="0" max="1000000" step="0.5" value="50" required>
+                    </div>
+                  </div>
+
+                  <div class="form-row-3">
+                    <div class="form-group">
+                      <label for="product-variety">6. Crop Variety <span class="label-optional">(Optional)</span></label>
+                      <input id="product-variety" name="variety" maxlength="80" placeholder="e.g. BPT 5204 / Natu / Alphonso">
+                    </div>
+                    <div class="form-group">
+                      <label for="product-grade">7. Quality / Grade</label>
+                      <input id="product-grade" name="qualityGrade" maxlength="60" value="Grade A - Fresh Harvest" placeholder="e.g. Grade A, Export Quality">
+                    </div>
+                    <div class="form-group">
+                      <label for="product-harvest">8. Harvest Date <span class="label-optional">(Optional)</span></label>
+                      <input id="product-harvest" name="harvestDate" type="date">
+                    </div>
+                  </div>
+
+                  <div class="form-row-2">
+                    <div class="form-group">
+                      <label for="product-location">9. Farm Location *</label>
+                      <input id="product-location" name="farmLocation" maxlength="120" placeholder="e.g. Atmakur, Nandyal District, AP" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="product-status">10. Availability Status *</label>
+                      <select id="product-status" name="status">
+                        <option value="available">Available for Buyers</option>
+                        <option value="unavailable">Temporarily Unavailable / Hidden</option>
+                        <option value="sold">Marked Sold Out</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="product-description">11. Crop Description &amp; Harvest Notes *</label>
+                    <textarea id="product-description" name="description" rows="3" maxlength="1000" placeholder="Describe freshness, cultivation method, packaging, and minimum order notes…" required></textarea>
+                  </div>
+
+                  <div class="form-actions-inline">
+                    <button id="publish-button" class="btn btn-primary btn-lg" type="submit">Publish Crop Listing</button>
+                    <button id="cancel-edit" class="btn btn-outline btn-lg" type="button">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Seller Navigation Tabs -->
+          <div class="dashboard-tabs" role="tablist" aria-label="Seller sections">
+            <button class="dash-tab active" data-seller-section="products" role="tab" aria-selected="true">My Crop Listings</button>
+            <button class="dash-tab" data-seller-section="sales" role="tab" aria-selected="false">Orders Received (<span id="seller-tab-orders-count">0</span>)</button>
+          </div>
+
+          <!-- Seller Listings Panel -->
+          <section id="seller-products-panel" class="dash-panel">
+            <div class="panel-header-row">
+              <div>
+                <h2>Your Farm Listings</h2>
+                <p>Manage prices, available stock quantities, and availability status for your crops.</p>
+              </div>
+              <div class="panel-toolbar-controls">
+                <select id="seller-filter" aria-label="Filter my listings">
+                  <option value="all">All Listings</option>
+                  <option value="available">Active Listings</option>
+                  <option value="sold">Sold Out / Unavailable</option>
+                </select>
+                <button type="button" id="seller-empty-add-btn" class="btn btn-primary btn-sm">+ Add New Crop</button>
+              </div>
+            </div>
+            <div id="seller-grid" class="product-grid"></div>
+            <div id="seller-empty" class="empty-state-card hidden">
+              <div class="empty-icon">🌱</div>
+              <h3>No crops in this view yet</h3>
+              <p>Click “+ Add New Crop” to upload a photo, set your price per unit, and publish your harvest to the marketplace.</p>
+              <button type="button" class="btn btn-primary" id="seller-empty-cta-btn">+ Add Your First Crop</button>
+            </div>
+          </section>
+
+          <!-- Seller Orders Received Panel -->
+          <section id="sales-panel" class="dash-panel hidden">
+            <div class="panel-header-row">
+              <div>
+                <h2>Orders Received from Buyers</h2>
+                <p>Review buyer delivery addresses, accept incoming orders, and update dispatch and delivery statuses. Payment is settled directly outside the platform.</p>
+              </div>
+            </div>
+            <div id="sales-grid" class="orders-list"></div>
+            <div id="sales-empty" class="empty-state-card hidden">
+              <div class="empty-icon">📦</div>
+              <h3>No buyer orders received yet</h3>
+              <p>When a customer places an order for one of your crops, their full delivery address, quantity, and status controls will appear here.</p>
+            </div>
+          </section>
+        </div>
+
+        <div id="loading" class="loading-state hidden">
+          <span class="spinner"></span> Syncing dashboard data…
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Professional Footer -->
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand-col">
+        <div class="brand-logo footer-brand">
+          <img src="/static/images/logo.jpg" alt="Crop2Costumer Logo" class="brand-logo-img">
+          <div class="brand-text">
+            <span class="brand-name">Crop<span>2</span>Costumer</span>
+            <span class="brand-tagline">From Farm to Your Door.</span>
+          </div>
+        </div>
+        <p class="footer-mission">
+          Connecting Indian cultivators and local households directly. Transparent farm-gate prices, real persistent inventory, and zero middleman markups.
+        </p>
+      </div>
+
+      <div class="footer-links-col">
+        <h4>Marketplace</h4>
+        <ul>
+          <li><a href="#home-view" data-nav="home">Home</a></li>
+          <li><a href="#marketplace-view" data-nav="marketplace">Browse All Crops</a></li>
+          <li><a href="#how-it-works" data-scroll="how-it-works">How It Works</a></li>
+          <li><a href="#about" data-scroll="about">Why Direct Agriculture</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-col">
+        <h4>Accounts &amp; Roles</h4>
+        <ul>
+          <li><button type="button" class="footer-link-btn" data-auth-trigger="buyer">Buyer Sign In / Register</button></li>
+          <li><button type="button" class="footer-link-btn" data-auth-trigger="seller">Seller Sign In / Register</button></li>
+          <li><a href="#faq-support" data-scroll="faq-support">Order &amp; OTP Help</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-col">
+        <h4>Platform Standards</h4>
+        <p class="footer-note">
+          <strong>No Online Payment Gateway:</strong> Orders reserve real farm stock with your delivery address. Payment is settled directly between farmer and customer.
+        </p>
+        <p class="footer-note">
+          <strong>Support:</strong> support@crop2costumer.local · Helpline: +91 800-123-FARM
+        </p>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <span>© 2026 Crop2Costumer — “From Farm to Your Door.” All rights reserved.</span>
+      <span>Persistent SQLite &amp; Server-Validated Agricultural Marketplace</span>
+    </div>
+  </footer>
+</body>
+</html>
