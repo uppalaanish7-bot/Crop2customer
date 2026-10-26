@@ -1,4 +1,6 @@
 import io
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -14,6 +16,7 @@ from pathlib import Path
 try:
     from flask import (
         Flask,
+        Response,
         g,
         jsonify,
         render_template,
@@ -25,6 +28,7 @@ try:
 except ImportError:
     from flask_compat import (
         Flask,
+        Response,
         RequestEntityTooLarge,
         g,
         jsonify,
@@ -97,6 +101,72 @@ SELLER_TRANSITIONS = {
 BUYER_CANCELLABLE_STATUSES = {"Order Placed", "Accepted"}
 
 
+class _PostgresConnection:
+    """Small DB-API adapter for the existing qmark-based SQLite queries."""
+
+    def __init__(self, connection):
+        self._connection = connection
+
+    @staticmethod
+    def _sql(query):
+        return query.replace("?", "%s")
+
+    @staticmethod
+    def _raise_database_error(error):
+        error_type = sqlite3.IntegrityError if str(getattr(error, "sqlstate", "")).startswith("23") else sqlite3.Error
+        raise error_type(str(error)) from error
+
+    def execute(self, query, params=()):
+        if query.strip().upper() == "BEGIN IMMEDIATE":
+            transaction_status = self._connection.info.transaction_status
+            if getattr(transaction_status, "name", "") == "IDLE":
+                query = "BEGIN"
+            else:
+                # PostgreSQL starts an implicit transaction on the first query;
+                # SQLite callers use BEGIN IMMEDIATE only to request write locks.
+                return self._connection.cursor()
+        try:
+            return self._connection.execute(self._sql(query), params)
+        except Exception as error:
+            if hasattr(error, "sqlstate"):
+                self._raise_database_error(error)
+            raise
+
+    def executemany(self, query, params):
+        try:
+            return self._connection.executemany(self._sql(query), params)
+        except Exception as error:
+            if hasattr(error, "sqlstate"):
+                self._raise_database_error(error)
+            raise
+
+    def commit(self):
+        try:
+            return self._connection.commit()
+        except Exception as error:
+            if hasattr(error, "sqlstate"):
+                self._raise_database_error(error)
+            raise
+
+    def rollback(self):
+        try:
+            return self._connection.rollback()
+        except Exception as error:
+            if hasattr(error, "sqlstate"):
+                self._raise_database_error(error)
+            raise
+
+    def close(self):
+        return self._connection.close()
+
+    def __enter__(self):
+        self._connection.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return self._connection.__exit__(exc_type, exc_value, traceback)
+
+
 def normalize_role(role_val):
     if not isinstance(role_val, str):
         return None
@@ -115,7 +185,18 @@ def create_app(test_config=None):
     is_prod = env_mode == "production"
     default_secret = os.environ.get("FLASK_SECRET_KEY")
     if is_prod and not default_secret and not (test_config and test_config.get("SECRET_KEY")):
-        raise RuntimeError("FLASK_SECRET_KEY must be configured when APP_ENV=production.")
+        database_secret = os.environ.get("DATABASE_URL", "").strip()
+        if database_secret:
+            # Vercel's existing Neon binding supplies a stable high-entropy
+            # secret across serverless instances, without requiring a manual
+            # dashboard edit to add FLASK_SECRET_KEY.
+            default_secret = hmac.new(
+                database_secret.encode("utf-8"),
+                b"crop2customer/flask-session-key/v1",
+                hashlib.sha256,
+            ).hexdigest()
+        else:
+            raise RuntimeError("FLASK_SECRET_KEY or DATABASE_URL must be configured in production.")
     # A random per-process development key avoids a predictable signed-session key.
     # Set FLASK_SECRET_KEY locally if sessions need to survive server restarts.
     default_secret = default_secret or secrets.token_urlsafe(32)
@@ -136,19 +217,94 @@ def create_app(test_config=None):
         TWILIO_AUTH_TOKEN=os.environ.get("TWILIO_AUTH_TOKEN", ""),
         TWILIO_FROM_NUMBER=os.environ.get("TWILIO_FROM_NUMBER", ""),
         FAST2SMS_API_KEY=os.environ.get("FAST2SMS_API_KEY", ""),
-        SEED_DEMO_DATA=os.environ.get("SEED_DEMO_DATA", "true").lower() == "true",
+        SEED_DEMO_DATA=os.environ.get("SEED_DEMO_DATA", "false" if is_prod else "true").lower() == "true",
+        DATABASE_URL=os.environ.get("DATABASE_URL", "").strip(),
+        AWS_ENDPOINT_URL_S3=os.environ.get("AWS_ENDPOINT_URL_S3", "").strip(),
+        AWS_ACCESS_KEY_ID=os.environ.get("AWS_ACCESS_KEY_ID", ""),
+        AWS_SECRET_ACCESS_KEY=os.environ.get("AWS_SECRET_ACCESS_KEY", ""),
+        AWS_REGION=os.environ.get("AWS_REGION", "us-east-2"),
+        OBJECT_STORAGE_BUCKET=os.environ.get("OBJECT_STORAGE_BUCKET", "").strip(),
+        STORAGE_BACKEND=os.environ.get("STORAGE_BACKEND", "").strip().lower(),
     )
     if test_config:
         app.config.update(test_config)
+        if test_config.get("TESTING"):
+            app.config.setdefault("DATABASE_URL", "")
+            if not test_config.get("DATABASE_URL"):
+                app.config["DATABASE_URL"] = ""
+            if not test_config.get("STORAGE_BACKEND"):
+                app.config["STORAGE_BACKEND"] = "local"
         if "TESTING" in test_config and test_config["TESTING"] and "SEED_DEMO_DATA" not in test_config:
             app.config["SEED_DEMO_DATA"] = False
     if str(app.config.get("APP_ENV", "")).lower() == "production":
         app.config["ENABLE_DEV_OTP"] = False
 
-    Path(DATABASE).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    storage_variables = (
+        "AWS_ENDPOINT_URL_S3",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "OBJECT_STORAGE_BUCKET",
+    )
+    storage_is_configured = all(app.config.get(name) for name in storage_variables)
+    if app.config["STORAGE_BACKEND"] == "s3" and not storage_is_configured and app.config.get("DATABASE_URL"):
+        # The project has a stale Vercel setting from a previous S3 setup.
+        # Neon is already bound to DATABASE_URL, so persist images in Postgres.
+        app.config["STORAGE_BACKEND"] = "postgres"
+    if not app.config.get("STORAGE_BACKEND"):
+        app.config["STORAGE_BACKEND"] = (
+            "postgres" if app.config.get("DATABASE_URL") else "s3" if storage_is_configured else "local"
+        )
+    if app.config["STORAGE_BACKEND"] not in {"local", "postgres", "s3"}:
+        raise RuntimeError("STORAGE_BACKEND must be 'local', 'postgres', or 's3'.")
+    if app.config["APP_ENV"] == "production" and not app.config.get("TESTING"):
+        if not app.config.get("DATABASE_URL"):
+            raise RuntimeError("DATABASE_URL must be configured for production storage.")
+        if app.config["STORAGE_BACKEND"] == "local":
+            raise RuntimeError("Persistent image storage must be configured for production.")
+        if app.config["STORAGE_BACKEND"] == "s3" and not storage_is_configured:
+            raise RuntimeError("All S3-compatible object-storage variables must be configured.")
+
+    if not app.config.get("DATABASE_URL"):
+        Path(DATABASE).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
+    if app.config["STORAGE_BACKEND"] == "local":
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    storage_client = None
+
+    def get_storage_client():
+        nonlocal storage_client
+        if storage_client is None:
+            try:
+                import boto3
+                from botocore.config import Config
+            except ImportError as exc:
+                raise RuntimeError("Install the declared boto3 dependency to use persistent object storage.") from exc
+            storage_client = boto3.client(
+                "s3",
+                endpoint_url=app.config["AWS_ENDPOINT_URL_S3"],
+                aws_access_key_id=app.config["AWS_ACCESS_KEY_ID"],
+                aws_secret_access_key=app.config["AWS_SECRET_ACCESS_KEY"],
+                region_name=app.config["AWS_REGION"] or "us-east-2",
+                config=Config(s3={"addressing_style": "path"}),
+            )
+        return storage_client
 
     def connect_db():
+        database_url = app.config.get("DATABASE_URL")
+        if database_url:
+            try:
+                import psycopg
+                from psycopg.rows import dict_row
+            except ImportError as exc:
+                raise RuntimeError("Install the declared psycopg dependency to use PostgreSQL storage.") from exc
+            try:
+                connection = psycopg.connect(
+                    database_url,
+                    row_factory=dict_row,
+                    connect_timeout=10,
+                )
+            except psycopg.Error as exc:
+                raise RuntimeError("Could not connect to the configured production database.") from exc
+            return _PostgresConnection(connection)
         db = sqlite3.connect(DATABASE, timeout=15)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
@@ -160,6 +316,13 @@ def create_app(test_config=None):
             db.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_def}")
 
     def init_db():
+        if app.config.get("DATABASE_URL"):
+            schema_path = BASE_DIR / "postgres_schema.sql"
+            with closing(connect_db()) as db, db:
+                for statement in schema_path.read_text(encoding="utf-8").split(";"):
+                    if statement.strip():
+                        db.execute(statement)
+            return
         with closing(connect_db()) as db, db:
             db.executescript(
                 """
@@ -653,9 +816,61 @@ def create_app(test_config=None):
             return None, "That image could not be processed. Choose another photo."
 
         filename = f"{uuid.uuid4().hex}.{IMAGE_FORMATS[image_format]}"
-        target = UPLOAD_DIR / filename
-        target.write_bytes(output.getvalue())
+        image_bytes = output.getvalue()
+        content_type = {
+                "JPEG": "image/jpeg",
+                "PNG": "image/png",
+                "WEBP": "image/webp",
+        }[image_format]
+        if app.config["STORAGE_BACKEND"] == "postgres":
+            try:
+                db = get_db()
+                db.execute(
+                    "INSERT INTO media_objects (filename, content_type, data) VALUES (?, ?, ?)",
+                    (filename, content_type, image_bytes),
+                )
+                db.commit()
+            except sqlite3.Error:
+                app.logger.exception("PostgreSQL image upload failed")
+                return None, "Image storage is temporarily unavailable. Please try again."
+        elif app.config["STORAGE_BACKEND"] == "s3":
+            try:
+                get_storage_client().put_object(
+                    Bucket=app.config["OBJECT_STORAGE_BUCKET"],
+                    Key=filename,
+                    Body=image_bytes,
+                    ContentType=content_type,
+                    CacheControl="public, max-age=3600",
+                )
+            except Exception:
+                app.logger.exception("Persistent image upload failed")
+                return None, "Image storage is temporarily unavailable. Please try again."
+        else:
+            target = UPLOAD_DIR / filename
+            target.write_bytes(image_bytes)
         return filename, None
+
+    def delete_image(filename):
+        if not filename or filename.startswith("crop_"):
+            return
+        if app.config["STORAGE_BACKEND"] == "postgres":
+            try:
+                db = get_db()
+                db.execute("DELETE FROM media_objects WHERE filename = ?", (filename,))
+                db.commit()
+            except sqlite3.Error:
+                app.logger.exception("Could not remove a stale PostgreSQL image")
+            return
+        if app.config["STORAGE_BACKEND"] == "s3":
+            try:
+                get_storage_client().delete_object(
+                    Bucket=app.config["OBJECT_STORAGE_BUCKET"],
+                    Key=filename,
+                )
+            except Exception:
+                app.logger.exception("Could not remove a stale object-storage image")
+            return
+        (UPLOAD_DIR / filename).unlink(missing_ok=True)
 
     def user_dict(row):
         norm_role = normalize_role(row["role"])
@@ -725,7 +940,7 @@ def create_app(test_config=None):
             "imageUrl": f"/media/{img_file}" if img_file else "/static/images/crop_tomatoes.jpg",
             "unitPrice": row["unit_price_paise"] / 100,
             "price": row["total_paise"] / 100,
-            "quantity": row["quantity"],
+            "quantity": float(row["quantity"]),
             "totalAmount": row["total_paise"] / 100,
             "status": row["status"],
             "cancellationReason": row["cancellation_reason"] if "cancellation_reason" in keys else "",
@@ -973,32 +1188,41 @@ def create_app(test_config=None):
             WHERE 1=1
         """
         params = []
+        like_operator = "ILIKE" if app.config.get("DATABASE_URL") else "LIKE"
+        like_collation = "" if app.config.get("DATABASE_URL") else " COLLATE NOCASE"
 
         if search:
             like_q = f"%{search}%"
-            query += """
+            query += f"""
                 AND (
-                    p.name LIKE ? COLLATE NOCASE
-                    OR p.category LIKE ? COLLATE NOCASE
-                    OR p.variety LIKE ? COLLATE NOCASE
-                    OR p.farm_location LIKE ? COLLATE NOCASE
-                    OR p.description LIKE ? COLLATE NOCASE
-                    OR u.full_name LIKE ? COLLATE NOCASE
-                    OR u.farm_name LIKE ? COLLATE NOCASE
+                    p.name {like_operator} ?{like_collation}
+                    OR p.category {like_operator} ?{like_collation}
+                    OR p.variety {like_operator} ?{like_collation}
+                    OR p.farm_location {like_operator} ?{like_collation}
+                    OR p.description {like_operator} ?{like_collation}
+                    OR u.full_name {like_operator} ?{like_collation}
+                    OR u.farm_name {like_operator} ?{like_collation}
                 )
             """
             params.extend([like_q] * 7)
 
         if category and category.lower() != "all":
-            query += " AND p.category = ? COLLATE NOCASE"
+            query += " AND LOWER(p.category) = LOWER(?)"
             params.append(category)
 
         if location:
-            query += " AND (p.farm_location LIKE ? COLLATE NOCASE OR u.location LIKE ? COLLATE NOCASE)"
+            query += (
+                f" AND (p.farm_location {like_operator} ?{like_collation} "
+                f"OR u.location {like_operator} ?{like_collation})"
+            )
             params.extend([f"%{location}%", f"%{location}%"])
 
         if seller_filter:
-            query += " AND (u.full_name LIKE ? COLLATE NOCASE OR u.farm_name LIKE ? COLLATE NOCASE OR u.phone LIKE ?)"
+            query += (
+                f" AND (u.full_name {like_operator} ?{like_collation} "
+                f"OR u.farm_name {like_operator} ?{like_collation} "
+                f"OR u.phone {like_operator} ?{like_collation})"
+            )
             params.extend([f"%{seller_filter}%", f"%{seller_filter}%", f"%{seller_filter}%"])
 
         if status == "available":
@@ -1125,6 +1349,7 @@ def create_app(test_config=None):
                 is_demo, created_at, updated_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+            RETURNING id
             """,
             (
                 seller["id"],
@@ -1144,6 +1369,7 @@ def create_app(test_config=None):
                 now,
             ),
         )
+        inserted_id = cursor.fetchone()["id"]
         db.commit()
         new_row = db.execute(
             """
@@ -1152,10 +1378,10 @@ def create_app(test_config=None):
             FROM products p JOIN users u ON u.id = p.seller_id
             WHERE p.id = ?
             """,
-            (cursor.lastrowid,),
+            (inserted_id,),
         ).fetchone()
         return jsonify(
-            id=cursor.lastrowid,
+            id=inserted_id,
             product=product_dict(new_row),
             message="Crop listing published to the marketplace.",
         ), 201
@@ -1186,8 +1412,7 @@ def create_app(test_config=None):
                 )
             db.execute("DELETE FROM products WHERE id = ? AND seller_id = ?", (product_id, seller["id"]))
             db.commit()
-            if not product["image_filename"].startswith("crop_"):
-                (UPLOAD_DIR / product["image_filename"]).unlink(missing_ok=True)
+            delete_image(product["image_filename"])
             return jsonify(ok=True, message="Listing deleted.")
 
         source_data = request.form.to_dict() if request.form else json_body()
@@ -1274,8 +1499,8 @@ def create_app(test_config=None):
             ),
         )
         db.commit()
-        if filename != product["image_filename"] and not product["image_filename"].startswith("crop_"):
-            (UPLOAD_DIR / product["image_filename"]).unlink(missing_ok=True)
+        if filename != product["image_filename"]:
+            delete_image(product["image_filename"])
         return jsonify(ok=True, message="Crop listing updated.")
 
     def place_order_internal(buyer, product_id, body):
@@ -1350,7 +1575,7 @@ def create_app(test_config=None):
                 FROM products p
                 JOIN users u ON u.id = p.seller_id
                 WHERE p.id = ?
-                """,
+                """ + (" FOR UPDATE OF p" if app.config.get("DATABASE_URL") else ""),
                 (product_id,),
             ).fetchone()
             if product is None:
@@ -1401,6 +1626,7 @@ def create_app(test_config=None):
                     delivery_instructions, status, idempotency_key,
                     created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Order Placed', ?, ?, ?)
+                RETURNING id
                 """,
                 (
                     order_id,
@@ -1427,6 +1653,7 @@ def create_app(test_config=None):
                     now,
                 ),
             )
+            inserted_id = cursor.fetchone()["id"]
             db.commit()
             created_row = db.execute(
                 """
@@ -1437,7 +1664,7 @@ def create_app(test_config=None):
                 JOIN users s ON s.id = o.seller_id
                 WHERE o.id = ?
                 """,
-                (cursor.lastrowid,),
+                (inserted_id,),
             ).fetchone()
             return jsonify(
                 message="Purchase recorded successfully!",
@@ -1453,6 +1680,12 @@ def create_app(test_config=None):
             db.rollback()
             app.logger.exception("Order transaction failed")
             return fail("Could not record this order. Please try again.", 500)
+
+    quantity_restore_expression = (
+        "ROUND(CAST(available_quantity + ? AS NUMERIC), 2)"
+        if app.config.get("DATABASE_URL")
+        else "ROUND(available_quantity + ?, 2)"
+    )
 
     @app.post("/api/products/<int:product_id>/purchase")
     @app.post("/api/orders")
@@ -1500,7 +1733,8 @@ def create_app(test_config=None):
         try:
             db.execute("BEGIN IMMEDIATE")
             order = db.execute(
-                "SELECT * FROM orders WHERE order_id = ? AND buyer_id = ?",
+                "SELECT * FROM orders WHERE order_id = ? AND buyer_id = ?"
+                + (" FOR UPDATE" if app.config.get("DATABASE_URL") else ""),
                 (order_id, buyer["id"]),
             ).fetchone()
             if order is None:
@@ -1519,9 +1753,9 @@ def create_app(test_config=None):
             )
             # Restore stock to product
             db.execute(
-                """
+                f"""
                 UPDATE products
-                SET available_quantity = ROUND(available_quantity + ?, 2),
+                SET available_quantity = {quantity_restore_expression},
                     status = CASE WHEN status = 'sold' THEN 'available' ELSE status END,
                     updated_at = ?
                 WHERE id = ?
@@ -1570,7 +1804,8 @@ def create_app(test_config=None):
         try:
             db.execute("BEGIN IMMEDIATE")
             order = db.execute(
-                "SELECT * FROM orders WHERE order_id = ? AND seller_id = ?",
+                "SELECT * FROM orders WHERE order_id = ? AND seller_id = ?"
+                + (" FOR UPDATE" if app.config.get("DATABASE_URL") else ""),
                 (order_id, seller["id"]),
             ).fetchone()
             if order is None:
@@ -1592,9 +1827,9 @@ def create_app(test_config=None):
             )
             if new_status == "Cancelled":
                 db.execute(
-                    """
+                    f"""
                     UPDATE products
-                    SET available_quantity = ROUND(available_quantity + ?, 2),
+                    SET available_quantity = {quantity_restore_expression},
                         status = CASE WHEN status = 'sold' THEN 'available' ELSE status END,
                         updated_at = ?
                     WHERE id = ?
@@ -1615,6 +1850,42 @@ def create_app(test_config=None):
     def product_media(filename):
         if "/" in filename or "\\" in filename or filename in (".", ".."):
             return fail("Image not found.", 404)
+        if app.config["STORAGE_BACKEND"] == "postgres" and not filename.startswith("crop_"):
+            try:
+                stored = get_db().execute(
+                    "SELECT content_type, data FROM media_objects WHERE filename = ?",
+                    (filename,),
+                ).fetchone()
+            except sqlite3.Error:
+                app.logger.exception("PostgreSQL image could not be served")
+                return fail("Image storage is temporarily unavailable.", 503)
+            if stored is not None:
+                return Response(
+                    bytes(stored["data"]),
+                    content_type=stored["content_type"],
+                    headers={"Cache-Control": "public, max-age=3600"},
+                )
+            return fail("Image not found.", 404)
+        if app.config["STORAGE_BACKEND"] == "s3" and not filename.startswith("crop_"):
+            try:
+                stored = get_storage_client().get_object(
+                    Bucket=app.config["OBJECT_STORAGE_BUCKET"],
+                    Key=filename,
+                )
+                body = stored["Body"].read()
+                content_type = stored.get("ContentType", "application/octet-stream")
+                return Response(
+                    body,
+                    content_type=content_type,
+                    headers={"Cache-Control": "public, max-age=3600"},
+                )
+            except Exception as error:
+                response = getattr(error, "response", {})
+                status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+                if status == 404 or response.get("Error", {}).get("Code") in {"NoSuchKey", "NotFound"}:
+                    return fail("Image not found.", 404)
+                app.logger.exception("Persistent image could not be served")
+                return fail("Image storage is temporarily unavailable.", 503)
         upload_file = UPLOAD_DIR / filename
         if upload_file.exists():
             return send_from_directory(UPLOAD_DIR, filename, max_age=3600)

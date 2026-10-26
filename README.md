@@ -29,15 +29,36 @@ Farmers (Sellers) can register with their phone number, upload crop photographs,
 
 ---
 
-## Persistent Data & Image Storage Architecture
+## Database and Image Storage
 
-- **Structured Database**: `data/marketplace.db` (SQLite 3 with `PRAGMA foreign_keys = ON`).
-  - Tables: `users`, `otp_Challenges`, `products`, and `orders`.
-  - Existing data is preserved across browser refreshes, server restarts, and different user sessions.
-- **Uploaded Crop Images**: `uploads/` directory.
-  - Every uploaded image is verified and re-encoded via `Pillow` (`PIL`) to strip potentially unsafe payloads and saved with a UUID filename in `uploads/`, served through `/media/<filename>`.
-- **How to Back Up Your Data**:
-  - Copy `data/marketplace.db` and the `uploads/` folder to your backup location.
+- **Local development** uses `data/marketplace.db` (SQLite) and `uploads/`.
+- **Production on Vercel** uses PostgreSQL through `DATABASE_URL`. Vercel Functions have a read-only filesystem apart from temporary `/tmp` space, so local SQLite and `uploads/` are not production storage.
+- Product photos are validated and re-encoded by Pillow before storage. In production they are stored as PostgreSQL `BYTEA` records and served through `/media/<filename>`; local development keeps using `uploads/`.
+- `postgres_schema.sql` defines the PostgreSQL schema while preserving the existing tables and fields.
+- `scripts/migrate_sqlite_to_neon.py` makes a timestamped local backup, copies uploaded images without overwriting mismatched objects, refuses a non-empty database destination, copies all five existing tables, and checks row counts. It never deletes the SQLite database or local uploads.
+
+### Recommended Vercel storage setup
+
+The Neon PostgreSQL integration provides the production database. Storing images in PostgreSQL keeps the initial deployment to one managed service and avoids relying on Vercel's temporary filesystem. Database quotas and idle compute limits still apply; a first request after inactivity may take longer.
+
+Configure these Vercel **Production** variables:
+
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | Neon pooled PostgreSQL connection string, provided by the Vercel integration |
+| `APP_ENV` | `production` |
+| `FLASK_SECRET_KEY` | Locally generated strong random secret |
+| `COOKIE_SECURE` | `true` |
+| `ENABLE_DEV_OTP` | `false` |
+| `SEED_DEMO_DATA` | `false` |
+| `STORAGE_BACKEND` | `postgres` |
+| `SMS_PROVIDER` | `none` until a real SMS provider is configured |
+
+Keep database and storage credentials server-side in Vercel. Do not put them in `.env.example`, GitHub, templates, JavaScript, or CSS.
+
+After the Neon database is ready, run `python scripts/migrate_sqlite_to_neon.py` locally with `DATABASE_URL` available in the environment. The script backs up the local database and uploads, migrates all five marketplace tables and image files, verifies row counts and image checksums, and leaves the SQLite database and uploads in place.
+
+The Free plan is useful for initial launch testing, but storage limits apply and idle compute starts on demand. A service-level uptime guarantee or more capacity may require a paid plan; do not upgrade without reviewing its current terms and cost.
 
 ---
 
@@ -85,13 +106,11 @@ To enable real SMS delivery:
    ```
    When `APP_ENV=production`, the `1234` development bypass is strictly disabled on the server.
 
-## Hosting and durable storage
+## Hosting and production security
 
-The default database path is the project-relative `data/marketplace.db`, and uploaded images are stored in `uploads/`. Both survive ordinary local restarts. Many app hosts use an ephemeral filesystem, which can discard SQLite records and uploaded images during redeploys or instance replacement. Mount durable storage and set `DATABASE_PATH` to a SQLite file on that volume and `UPLOAD_DIR` to a directory on the same persistent volume before starting the app. Back up both locations together. Do not use multiple app instances against an ordinary local SQLite file.
+For production, configure a strong `FLASK_SECRET_KEY`, `APP_ENV=production`, `COOKIE_SECURE=true`, and `ENABLE_DEV_OTP=false`. Production requires `DATABASE_URL` and persistent image storage (`postgres` or configured S3); the app refuses to fall back to local SQLite or `uploads/` when production mode is enabled. Without SMS-provider credentials, production OTP requests fail closed rather than using the `1234` development bypass.
 
-For production, configure a long random `FLASK_SECRET_KEY`, `APP_ENV=production`, and `COOKIE_SECURE=true` behind HTTPS. The server refuses to start in production without `FLASK_SECRET_KEY`. Real OTP delivery requires valid credentials for the selected SMS provider (`SMS_PROVIDER=twilio` with Twilio credentials, or `SMS_PROVIDER=fast2sms` with `FAST2SMS_API_KEY`). With no provider credentials, real SMS is unavailable; local demo mode remains available only outside production.
-
-The app can be started with `python app.py` for local demonstration. A production WSGI server can import `app:create_app()`; configure the host's startup command and persistent volume paths accordingly.
+The app can be started with `python app.py` for local demonstration. A production WSGI server can import `app:create_app()` after its production database and secrets have been configured.
 
 ---
 

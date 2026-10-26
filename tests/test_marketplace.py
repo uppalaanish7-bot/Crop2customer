@@ -428,6 +428,28 @@ class Crop2CostumerMarketplaceTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "FLASK_SECRET_KEY"):
                 marketplace.create_app()
 
+    def test_production_requires_managed_database_and_persistent_image_storage(self):
+        with patch.dict(
+            os.environ,
+            {"APP_ENV": "production", "FLASK_SECRET_KEY": "test-only-secret"},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "DATABASE_URL"):
+                marketplace.create_app()
+
+            with self.assertRaisesRegex(RuntimeError, "Persistent image storage"):
+                marketplace.create_app(
+                    {
+                        "DATABASE_URL": "postgresql://unused-test-dsn",
+                        "STORAGE_BACKEND": "local",
+                    }
+                )
+
+        self.assertEqual(
+            marketplace._PostgresConnection._sql("SELECT id FROM users WHERE phone = ?"),
+            "SELECT id FROM users WHERE phone = %s",
+        )
+
     def test_simultaneous_buyers_cannot_oversell_single_stock_item(self):
         self.login("seller", "+919876543217", code="1234")
         product_id = self.create_product(quantity="1").get_json()["id"]
