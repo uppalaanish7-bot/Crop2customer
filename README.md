@@ -54,6 +54,8 @@ Configure these Vercel **Production** variables:
 | `STORAGE_BACKEND` | `postgres` |
 | `SMS_PROVIDER` | `none` until a real SMS provider is configured |
 
+For a presentation deployment, set `SEED_DEMO_DATA=true` to add four clearly labeled sample crops on first startup when the products table is empty. This seed works with both local SQLite and Vercel PostgreSQL.
+
 Keep database and storage credentials server-side in Vercel. Do not put them in `.env.example`, GitHub, templates, JavaScript, or CSS.
 
 After the Neon database is ready, run `python scripts/migrate_sqlite_to_neon.py` locally with `DATABASE_URL` available in the environment. The script backs up the local database and uploads, migrates all five marketplace tables and image files, verifies row counts and image checksums, and leaves the SQLite database and uploads in place.

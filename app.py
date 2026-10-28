@@ -331,6 +331,132 @@ def create_app(test_config=None):
         if col_name not in cols:
             db.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_def}")
 
+    def seed_demo_products(db):
+        if not app.config.get("SEED_DEMO_DATA"):
+            return
+
+        if app.config.get("DATABASE_URL"):
+            # Several Vercel instances can initialize the same Postgres database
+            # at once. Serialize the empty-database check to avoid duplicate seeds.
+            db.execute("SELECT pg_advisory_xact_lock(hashtext('crop2costumer:demo-seed:v1'))")
+
+        count = db.execute("SELECT COUNT(*) AS c FROM products").fetchone()["c"]
+        if count:
+            return
+
+        now = datetime.now(timezone.utc).isoformat()
+        today = datetime.now(timezone.utc).date().isoformat()
+        if app.config.get("DATABASE_URL"):
+            insert_demo_seller = """
+                INSERT INTO users (role, phone, full_name, farm_name, location, bio, created_at, updated_at)
+                VALUES ('seller', '+919440112233', 'Ramesh Naidu (Demo)', 'Nallamala Green Farms (Demo)',
+                        'Atmakur, Nandyal District, AP',
+                        'Sample demonstration farmer profile showing how direct harvest listings appear on Crop2Costumer.',
+                        ?, ?)
+                ON CONFLICT (role, phone) DO NOTHING
+            """
+        else:
+            insert_demo_seller = """
+                INSERT OR IGNORE INTO users (role, phone, full_name, farm_name, location, bio, created_at, updated_at)
+                VALUES ('seller', '+919440112233', 'Ramesh Naidu (Demo)', 'Nallamala Green Farms (Demo)',
+                        'Atmakur, Nandyal District, AP',
+                        'Sample demonstration farmer profile showing how direct harvest listings appear on Crop2Costumer.',
+                        ?, ?)
+            """
+        db.execute(insert_demo_seller, (now, now))
+        demo_seller = db.execute(
+            "SELECT id FROM users WHERE role = 'seller' AND phone = '+919440112233'"
+        ).fetchone()
+        if not demo_seller:
+            return
+
+        sid = demo_seller["id"]
+        demo_items = [
+            (
+                sid,
+                "Heirloom Country Tomatoes (Natu Tamata)",
+                "Vegetables",
+                "Desi Natu Variety",
+                "Grade A - Fresh Harvest",
+                today,
+                "Atmakur, Nandyal, Andhra Pradesh",
+                "kg",
+                85.0,
+                3800,
+                "Vine-ripened country tomatoes harvested this morning from red soil plots in Atmakur. Juicy, tangy flavour ideal for curries and chutneys. [Demo Listing]",
+                "crop_tomatoes.jpg",
+                "available",
+                1,
+                now,
+                now,
+            ),
+            (
+                sid,
+                "Sona Masoori Raw Paddy Rice (Aged 6 Months)",
+                "Grains & Cereals",
+                "BPT 5204 Sona Masoori",
+                "Export Grade A",
+                today,
+                "Kurnool Rural, Andhra Pradesh",
+                "quintal",
+                12.0,
+                465000,
+                "Single-origin BPT 5204 Sona Masoori rice milled directly after sun-drying. Low broken percentage, aromatic and light on digestion. [Demo Listing]",
+                "crop_grains.jpg",
+                "available",
+                1,
+                now,
+                now,
+            ),
+            (
+                sid,
+                "Fresh Palak Spinach, Tender Okra & Green Chilies",
+                "Leafy Greens",
+                "Guntur Teja & Local Palak",
+                "Grade A - Morning Cut",
+                today,
+                "Atmakur, Nandyal, Andhra Pradesh",
+                "kg",
+                40.0,
+                4500,
+                "Pesticide-residue-free leafy greens, tender ladyfinger (okra), and spicy green chilies picked at sunrise and packed in ventilated crates. [Demo Listing]",
+                "crop_greens.jpg",
+                "available",
+                1,
+                now,
+                now,
+            ),
+            (
+                sid,
+                "Banganapalli Orchard Mangoes & Karpoora Bananas",
+                "Fruits",
+                "GI Banganapalli & Karpoora Chakkarakeli",
+                "Orchard Select Grade A",
+                today,
+                "Banganapalle, Nandyal, Andhra Pradesh",
+                "dozen",
+                25.0,
+                32000,
+                "Naturally ripened golden orchard fruits and sweet plantains from family-tended groves near Banganapalle. Carbide-free ripening in hay boxes. [Demo Listing]",
+                "crop_fruits.jpg",
+                "available",
+                1,
+                now,
+                now,
+            ),
+        ]
+        db.executemany(
+            """
+            INSERT INTO products (
+                seller_id, name, category, variety, quality_grade,
+                harvest_date, farm_location, unit, available_quantity,
+                price_paise, description, image_filename, status,
+                is_demo, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            demo_items,
+        )
+
     def init_db():
         if app.config.get("DATABASE_URL"):
             schema_path = BASE_DIR / "postgres_schema.sql"
@@ -338,6 +464,7 @@ def create_app(test_config=None):
                 for statement in schema_path.read_text(encoding="utf-8").split(";"):
                     if statement.strip():
                         db.execute(statement)
+                seed_demo_products(db)
             return
         with closing(connect_db()) as db, db:
             db.executescript(
@@ -511,110 +638,7 @@ def create_app(test_config=None):
                     CREATE INDEX IF NOT EXISTS idx_products_seller ON products(seller_id);
                     PRAGMA foreign_keys = ON;
                 """)
-
-
-            # Seed clearly labeled initial demo listings only if products table is empty and SEED_DEMO_DATA is true
-            if app.config.get("SEED_DEMO_DATA"):
-                count = db.execute("SELECT COUNT(*) AS c FROM products").fetchone()["c"]
-                if count == 0:
-                    now = datetime.now(timezone.utc).isoformat()
-                    db.execute(
-                        """
-                        INSERT OR IGNORE INTO users (role, phone, full_name, farm_name, location, bio, created_at, updated_at)
-                        VALUES ('seller', '+919440112233', 'Ramesh Naidu (Demo)', 'Nallamala Green Farms (Demo)', 'Atmakur, Nandyal District, AP', 'Sample demonstration farmer profile showing how direct harvest listings appear on Crop2Costumer.', ?, ?)
-                        """,
-                        (now, now),
-                    )
-                    demo_seller = db.execute(
-                        "SELECT id FROM users WHERE role = 'seller' AND phone = '+919440112233'"
-                    ).fetchone()
-                    if demo_seller:
-                        sid = demo_seller["id"]
-                        demo_items = [
-                            (
-                                sid,
-                                "Heirloom Country Tomatoes (Natu Tamata)",
-                                "Vegetables",
-                                "Desi Natu Variety",
-                                "Grade A - Fresh Harvest",
-                                "2026-10-24",
-                                "Atmakur, Nandyal, Andhra Pradesh",
-                                "kg",
-                                85.0,
-                                3800,
-                                "Vine-ripened country tomatoes harvested this morning from red soil plots in Atmakur. Juicy, tangy flavour ideal for curries and chutneys. [Demo Listing]",
-                                "crop_tomatoes.jpg",
-                                "available",
-                                1,
-                                now,
-                                now,
-                            ),
-                            (
-                                sid,
-                                "Sona Masoori Raw Paddy Rice (Aged 6 Months)",
-                                "Grains & Cereals",
-                                "BPT 5204 Sona Masoori",
-                                "Export Grade A",
-                                "2026-10-15",
-                                "Kurnool Rural, Andhra Pradesh",
-                                "quintal",
-                                12.0,
-                                465000,
-                                "Single-origin BPT 5204 Sona Masoori rice milled directly after sun-drying. Low broken percentage, aromatic and light on digestion. [Demo Listing]",
-                                "crop_grains.jpg",
-                                "available",
-                                1,
-                                now,
-                                now,
-                            ),
-                            (
-                                sid,
-                                "Fresh Palak Spinach, Tender Okra & Green Chilies",
-                                "Leafy Greens",
-                                "Guntur Teja & Local Palak",
-                                "Grade A - Morning Cut",
-                                "2026-10-25",
-                                "Atmakur, Nandyal, Andhra Pradesh",
-                                "kg",
-                                40.0,
-                                4500,
-                                "Pesticide-residue-free leafy greens, tender ladyfinger (okra), and spicy green chilies picked at sunrise and packed in ventilated crates. [Demo Listing]",
-                                "crop_greens.jpg",
-                                "available",
-                                1,
-                                now,
-                                now,
-                            ),
-                            (
-                                sid,
-                                "Banganapalli Orchard Mangoes & Karpoora Bananas",
-                                "Fruits",
-                                "GI Banganapalli & Karpoora Chakkarakeli",
-                                "Orchard Select Grade A",
-                                "2026-10-23",
-                                "Banganapalle, Nandyal, Andhra Pradesh",
-                                "dozen",
-                                25.0,
-                                32000,
-                                "Naturally ripened golden orchard fruits and sweet plantains from family-tended groves near Banganapalle. Carbide-free ripening in hay boxes. [Demo Listing]",
-                                "crop_fruits.jpg",
-                                "available",
-                                1,
-                                now,
-                                now,
-                            ),
-                        ]
-                        db.executemany(
-                            """
-                            INSERT INTO products (
-                                seller_id, name, category, variety, quality_grade,
-                                harvest_date, farm_location, unit, available_quantity,
-                                price_paise, description, image_filename, status,
-                                is_demo, created_at, updated_at
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """,
-                            demo_items,
-                        )
+            seed_demo_products(db)
 
     init_db()
 
