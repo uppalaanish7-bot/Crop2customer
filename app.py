@@ -445,17 +445,16 @@ def create_app(test_config=None):
                 now,
             ),
         ]
-        db.executemany(
-            """
+        insert_demo_product = """
             INSERT INTO products (
                 seller_id, name, category, variety, quality_grade,
                 harvest_date, farm_location, unit, available_quantity,
                 price_paise, description, image_filename, status,
                 is_demo, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            demo_items,
-        )
+        """
+        for item in demo_items:
+            db.execute(insert_demo_product, item)
 
     def init_db():
         if app.config.get("DATABASE_URL"):
