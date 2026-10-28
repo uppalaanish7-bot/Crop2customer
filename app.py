@@ -182,7 +182,8 @@ def create_app(test_config=None):
     app = Flask(__name__)
 
     env_mode = os.environ.get("APP_ENV", os.environ.get("FLASK_ENV", "development")).lower()
-    is_prod = env_mode == "production"
+    vercel_env = os.environ.get("VERCEL_ENV", "").lower()
+    is_prod = env_mode == "production" or vercel_env == "production"
     default_secret = os.environ.get("FLASK_SECRET_KEY")
     if is_prod and not default_secret and not (test_config and test_config.get("SECRET_KEY")):
         database_secret = os.environ.get("DATABASE_URL", "").strip()
@@ -200,9 +201,18 @@ def create_app(test_config=None):
     # A random per-process development key avoids a predictable signed-session key.
     # Set FLASK_SECRET_KEY locally if sessions need to survive server restarts.
     default_secret = default_secret or secrets.token_urlsafe(32)
-    dev_otp_enabled = os.environ.get("ENABLE_DEV_OTP", "false" if is_prod else "true").lower() == "true"
-    if is_prod:
+    allow_demo_auth_in_production = (
+        os.environ.get("ALLOW_DEMO_AUTH_IN_PRODUCTION", "false").lower() == "true"
+    )
+    dev_otp_enabled = os.environ.get(
+        "ENABLE_DEV_OTP", "false" if vercel_env or env_mode == "production" else "true"
+    ).lower() == "true"
+    if vercel_env == "preview":
+        # Vercel Preview may share the Production database. Keep the shared demo
+        # code disabled there unless a separate preview-auth design is added.
         dev_otp_enabled = False
+    elif is_prod:
+        dev_otp_enabled = allow_demo_auth_in_production
 
     app.config.update(
         SECRET_KEY=default_secret,
@@ -212,6 +222,7 @@ def create_app(test_config=None):
         SESSION_COOKIE_SECURE=os.environ.get("COOKIE_SECURE", "").lower() == "true",
         APP_ENV=env_mode,
         ENABLE_DEV_OTP=dev_otp_enabled,
+        ALLOW_DEMO_AUTH_IN_PRODUCTION=allow_demo_auth_in_production,
         SMS_PROVIDER=os.environ.get("SMS_PROVIDER", "none").lower(),
         TWILIO_ACCOUNT_SID=os.environ.get("TWILIO_ACCOUNT_SID", ""),
         TWILIO_AUTH_TOKEN=os.environ.get("TWILIO_AUTH_TOKEN", ""),
@@ -236,8 +247,13 @@ def create_app(test_config=None):
                 app.config["STORAGE_BACKEND"] = "local"
         if "TESTING" in test_config and test_config["TESTING"] and "SEED_DEMO_DATA" not in test_config:
             app.config["SEED_DEMO_DATA"] = False
-    if str(app.config.get("APP_ENV", "")).lower() == "production":
+    if os.environ.get("VERCEL_ENV", "").lower() == "preview":
         app.config["ENABLE_DEV_OTP"] = False
+    elif (
+        str(app.config.get("APP_ENV", "")).lower() == "production"
+        or os.environ.get("VERCEL_ENV", "").lower() == "production"
+    ):
+        app.config["ENABLE_DEV_OTP"] = bool(app.config.get("ALLOW_DEMO_AUTH_IN_PRODUCTION"))
 
     storage_variables = (
         "AWS_ENDPOINT_URL_S3",
@@ -1018,9 +1034,12 @@ def create_app(test_config=None):
             return fail("Too many OTP requests. Please wait 10 minutes before requesting another code.", 429)
         expires = (now + timedelta(minutes=10)).isoformat()
 
-        generated_otp = f"{secrets.randbelow(9000) + 1000}"
-        sms_sent, sms_detail = send_sms_otp(phone, generated_otp)
         dev_enabled = bool(app.config.get("ENABLE_DEV_OTP"))
+        generated_otp = f"{secrets.randbelow(9000) + 1000}"
+        if dev_enabled:
+            sms_sent, sms_detail = False, "SMS skipped in development/demo mode."
+        else:
+            sms_sent, sms_detail = send_sms_otp(phone, generated_otp)
 
         if not sms_sent and not dev_enabled:
             return fail(

@@ -14,7 +14,7 @@ Farmers (Sellers) can register with their phone number, upload crop photographs,
 2. **Role-Separated Phone OTP Authentication (`Buyer` & `Seller`)**:
    - Distinct entry paths for **Continue as Buyer** and **Continue as Seller**.
    - Supports live SMS dispatch via **Twilio** or **Fast2SMS** when configured via environment variables.
-   - Includes a safe **Development / Demo Mode** fallback using common OTP **`1234`** when `ENABLE_DEV_OTP=true` and `APP_ENV!=production`, accompanied by a transparent UI banner so the app never silently pretends an SMS was sent.
+   - Includes a no-SMS **Demo Mode** using code **`1234`**. It skips the SMS provider entirely. Local development enables it by default; Vercel production requires the explicit `ALLOW_DEMO_AUTH_IN_PRODUCTION=true` setting. This accepts the shared code for any valid phone number, so it is suitable only when unrestricted account impersonation is acceptable. Vercel Preview keeps it disabled because Preview shares the production database.
 3. **Farmer-Friendly Seller Dashboard**:
    - KPI summary cards (Total Listings, Active in Marketplace, Sold Out/Unavailable, Orders Received).
    - **Add / Edit Crop Form** with 11 structured fields (Crop Name, Category, Price, Unit, Available Quantity, Crop Variety, Quality Grade, Harvest Date, Farm Location, Availability Status, Description) and client + server image validation (JPEG, PNG, WebP up to 5 MB) with live image preview.
